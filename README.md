@@ -15,12 +15,13 @@ Quản lý cụm **Proxmox 9 node** bằng code:
 | # | File | Nội dung |
 |---|------|----------|
 | 0 | [docs/00-tong-quan.md](docs/00-tong-quan.md) | IaC là gì, Terraform vs Ansible, kiến trúc tổng thể |
-| 1 | [docs/01-chuan-bi.md](docs/01-chuan-bi.md) | Cài công cụ (Windows), tạo API token, SSH key, cloud-init template |
+| 1 | [docs/01-chuan-bi.md](docs/01-chuan-bi.md) | Cài công cụ (Ubuntu), tạo API token, SSH key, cloud-init template |
 | 2 | [docs/02-terraform-co-ban.md](docs/02-terraform-co-ban.md) | init / plan / apply, tạo VM đầu tiên, hiểu state |
 | 3 | [docs/03-ansible-co-ban.md](docs/03-ansible-co-ban.md) | Inventory động, provision OS, cài k3s + monitoring |
 | 4 | [docs/04-ceph-pveceph.md](docs/04-ceph-pveceph.md) | Dựng Ceph bằng `pveceph`, dùng làm storage cho VM |
 | 5 | [docs/05-nang-cao.md](docs/05-nang-cao.md) | Remote state, CI/CD, SDN/VLAN, HA, scale 9 node |
 | 6 | [docs/06-van-hanh.md](docs/06-van-hanh.md) | Day-2: thêm VM/node, destroy an toàn, backup state |
+| 7 | [docs/07-kien-truc-trien-khai.md](docs/07-kien-truc-trien-khai.md) | **IaC chạy ở server nào**, mô hình 1-node vs HA, hướng mở rộng cloud |
 |   | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Các lỗi hay gặp & cách xử lý |
 
 ---

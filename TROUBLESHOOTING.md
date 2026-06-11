@@ -200,11 +200,11 @@ sudo modprobe br_netfilter overlay
 
 ---
 
-## 12. Windows / WSL
+## 12. Control node (Ubuntu) — môi trường chạy IaC
 
-- Chạy **Ansible trong WSL** (Ubuntu), không chạy trực tiếp trên Windows.
 - Lỗi quyền key `~/.ssh/id_ed25519` (permissions too open): `chmod 600 ~/.ssh/id_ed25519`.
-- Dùng đường dẫn WSL (`/home/you/...`), tránh trộn đường dẫn `C:\...` khi chạy ansible.
+- Lỗi `Permission denied (publickey)`: kiểm tra `ssh-add -l`; nếu trống → `ssh-add ~/.ssh/id_ed25519`.
+- Nhiều người dùng chung control node → mỗi người dễ ghi đè `terraform.tfstate`. Dùng **remote state** ([docs/05](docs/05-nang-cao.md)) và xem mô hình ở [docs/07](docs/07-kien-truc-trien-khai.md).
 
 ---
 

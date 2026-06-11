@@ -1,41 +1,41 @@
 # 01 — Chuẩn bị (làm 1 lần)
 
-> Sau bước này bạn sẽ có: công cụ trên máy Windows, 1 API token, 1 SSH key, và 1 cloud-init template trên Proxmox.
+> Môi trường: **Ubuntu Linux** (máy bạn hoặc 1 VM/LXC "control node" — xem [07-kien-truc-trien-khai.md](07-kien-truc-trien-khai.md)).
+> Sau bước này bạn sẽ có: công cụ đã cài, 1 API token, 1 SSH key, và 1 cloud-init template trên Proxmox.
 
-## 1. Cài công cụ trên máy bạn (Windows)
-
-Mở **PowerShell** và dùng `winget`:
-
-```powershell
-winget install HashiCorp.Terraform
-winget install Git.Git
-# Ansible chạy trên Linux là chính. Trên Windows nên dùng WSL2:
-wsl --install -d Ubuntu
-```
-
-Sau đó **trong WSL (Ubuntu)** cài Ansible:
+## 1. Cài công cụ trên Ubuntu
 
 ```bash
 sudo apt update
-sudo apt install -y python3-pip
-python3 -m pip install --user ansible
+sudo apt install -y git curl gnupg software-properties-common python3-pip
+
+# --- Terraform (repo chính thức HashiCorp) ---
+wget -O - https://apt.releases.hashicorp.com/gpg | \
+  sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+  sudo tee /etc/apt/sources.list.d/hashicorp.list
+sudo apt update && sudo apt install -y terraform
+
+# --- Ansible + collections ---
+sudo apt install -y ansible
 ansible-galaxy collection install community.general ansible.posix
+
+# --- (tùy chọn) kubectl, helm để quản k3s sau này ---
+sudo snap install kubectl --classic
+sudo snap install helm --classic
 ```
 
 Kiểm tra:
 
-```powershell
-terraform version      # >= 1.7
-```
 ```bash
-ansible --version      # trong WSL
+terraform version      # >= 1.7
+ansible --version
 ```
 
-> 💡 **Vì sao Ansible nên chạy trong WSL?** Ansible dùng SSH và nhiều module Linux; chạy native trên Windows rất khó. WSL2 cho bạn 1 Ubuntu thật ngay trong Windows. Terraform thì chạy thẳng trên Windows hay WSL đều được — **chọn 1 chỗ** và làm việc nhất quán ở đó (khuyên: làm tất cả trong WSL cho đồng bộ).
+> 💡 Cài thẳng trên Ubuntu, không cần WSL. Nếu chạy trên control node dùng chung (nhiều người), xem [07-kien-truc-trien-khai.md](07-kien-truc-trien-khai.md).
 
 ## 2. Tạo SSH key (nếu chưa có)
-
-Trong WSL:
 
 ```bash
 ssh-keygen -t ed25519 -C "proxmox-iac"

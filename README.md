@@ -7,6 +7,7 @@ Quản lý cụm **Proxmox 9 node** bằng code:
 - **Ceph** → dựng bằng script `pveceph` (Terraform không làm được phần này).
 
 > 🟢 **Bạn mới bắt đầu?** Đọc theo thứ tự trong thư mục [`docs/`](docs/) — từ cơ bản đến nâng cao.
+> 🧪 **Muốn thực hành ngay?** Theo [`LAB.md`](LAB.md) — lab học theo từng ngày, mỗi lệnh giải thích *làm gì + tại sao*.
 
 ---
 

@@ -1,0 +1,119 @@
+---
+# =============================================
+#  roles/monitoring/tasks/main.yml
+#  Prometheus + Grafana + Node Exporter
+# =============================================
+
+- name: Install Docker
+  block:
+    - name: Add Docker GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repo
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker packages
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Start Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Add ubuntu to docker group
+      ansible.builtin.user:
+        name: ubuntu
+        groups: docker
+        append: true
+
+- name: Create monitoring directory
+  ansible.builtin.file:
+    path: /opt/monitoring
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy Prometheus config
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: /opt/monitoring/prometheus.yml
+    mode: "0644"
+  notify: Restart monitoring stack
+
+- name: Deploy Grafana datasource
+  ansible.builtin.template:
+    src: grafana-datasource.yml.j2
+    dest: /opt/monitoring/grafana-datasource.yml
+    mode: "0644"
+
+- name: Deploy docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/monitoring/docker-compose.yml
+    mode: "0644"
+  notify: Restart monitoring stack
+
+- name: Start monitoring stack
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: /opt/monitoring
+  changed_when: false
+
+- name: Open firewall ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "3000"   # Grafana
+    - "9090"   # Prometheus
+    - "9100"   # Node exporter
+
+- name: Install node_exporter on ALL hosts (collect metrics)
+  ansible.builtin.shell: |
+    VERSION=1.8.1
+    wget -q https://github.com/prometheus/node_exporter/releases/download/v${VERSION}/node_exporter-${VERSION}.linux-amd64.tar.gz
+    tar xzf node_exporter-${VERSION}.linux-amd64.tar.gz
+    mv node_exporter-${VERSION}.linux-amd64/node_exporter /usr/local/bin/
+    rm -rf node_exporter-*
+  args:
+    creates: /usr/local/bin/node_exporter
+
+- name: Create node_exporter systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/node_exporter.service
+    content: |
+      [Unit]
+      Description=Node Exporter
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=nobody
+      ExecStart=/usr/local/bin/node_exporter
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  notify: Restart node_exporter
+
+- name: Enable node_exporter
+  ansible.builtin.systemd:
+    name: node_exporter
+    enabled: true
+    state: started
+    daemon_reload: true

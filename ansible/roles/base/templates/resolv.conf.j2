@@ -1,0 +1,7 @@
+# roles/base/templates/resolv.conf.j2
+# Managed by Ansible — do not edit manually
+{% for ns in dns_servers %}
+nameserver {{ ns }}
+{% endfor %}
+search {{ dns_search }}
+options ndots:5

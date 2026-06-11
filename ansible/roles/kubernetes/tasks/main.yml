@@ -1,0 +1,76 @@
+---
+# =============================================
+#  roles/kubernetes/tasks/main.yml
+#  Cài k3s — nhẹ, phù hợp homelab/prod nhỏ
+# =============================================
+
+- name: Install k3s on master
+  when: inventory_hostname in groups['k8s_masters']
+  block:
+    - name: Download and install k3s (master)
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | sh -s - server \
+          --cluster-init \
+          --disable traefik \
+          --disable servicelb \
+          --node-ip {{ ansible_host }} \
+          --advertise-address {{ ansible_host }} \
+          --tls-san {{ ansible_host }}
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Wait for k3s to be ready
+      ansible.builtin.wait_for:
+        path: /var/lib/rancher/k3s/server/node-token
+        timeout: 120
+
+    - name: Get node token
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: k3s_token
+
+    - name: Save token for workers
+      ansible.builtin.set_fact:
+        k3s_node_token: "{{ k3s_token['content'] | b64decode | trim }}"
+        k3s_master_ip: "{{ ansible_host }}"
+
+    - name: Fetch kubeconfig
+      ansible.builtin.fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "{{ playbook_dir }}/../kubeconfig.yaml"
+        flat: true
+
+    - name: Fix kubeconfig server URL
+      ansible.builtin.replace:
+        path: "{{ playbook_dir }}/../kubeconfig.yaml"
+        regexp: 'https://127.0.0.1:6443'
+        replace: "https://{{ ansible_host }}:6443"
+      delegate_to: localhost
+
+- name: Install k3s on workers
+  when: inventory_hostname in groups['k8s_workers']
+  block:
+    - name: Get master info
+      ansible.builtin.set_fact:
+        k3s_master_ip: "{{ hostvars[groups['k8s_masters'][0]]['ansible_host'] }}"
+        k3s_node_token: "{{ hostvars[groups['k8s_masters'][0]]['k3s_node_token'] }}"
+
+    - name: Download and install k3s (worker)
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | K3S_URL=https://{{ k3s_master_ip }}:6443 \
+          K3S_TOKEN={{ k3s_node_token }} \
+          sh -s - agent \
+          --node-ip {{ ansible_host }}
+      args:
+        creates: /usr/local/bin/k3s
+
+- name: Open firewall for k8s
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "6443"   # API server
+    - "10250"  # kubelet
+    - "2379"   # etcd
+    - "2380"   # etcd peer

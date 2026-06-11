@@ -1,0 +1,20 @@
+---
+# =============================================
+#  playbooks/provision.yml
+#  Chạy ngay sau terraform apply
+#  Mục đích: chuẩn bị OS cho mọi VM mới
+# =============================================
+- name: Base provisioning — all VMs
+  hosts: all
+  gather_facts: false
+  serial: 5      # Chạy song song tối đa 5 host cùng lúc
+
+  pre_tasks:
+    - name: Wait for SSH to be ready
+      ansible.builtin.wait_for_connection:
+        timeout: 180
+        sleep: 10
+
+  roles:
+    - role: base
+      tags: [base, always]

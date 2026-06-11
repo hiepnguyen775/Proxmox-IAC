@@ -1,0 +1,142 @@
+---
+# =============================================
+#  roles/base/tasks/main.yml
+#  OS hardening + chuẩn bị mọi VM mới
+# =============================================
+
+- name: Wait for VM to be reachable
+  ansible.builtin.wait_for_connection:
+    timeout: 120
+    sleep: 5
+
+- name: Gather facts
+  ansible.builtin.setup:
+
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Update /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "127.0.1.1 {{ inventory_hostname }}"
+    state: present
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ system_timezone }}"
+
+- name: Set locale
+  ansible.builtin.command: localectl set-locale LANG={{ system_locale }}
+  changed_when: false
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Upgrade all packages
+  ansible.builtin.apt:
+    upgrade: dist
+    autoremove: true
+
+- name: Install required packages
+  ansible.builtin.apt:
+    name: "{{ system_packages }}"
+    state: present
+
+- name: Enable and start qemu-guest-agent
+  ansible.builtin.systemd:
+    name: qemu-guest-agent
+    enabled: true
+    state: started
+
+- name: Configure DNS
+  ansible.builtin.template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure NTP (systemd-timesyncd)
+  ansible.builtin.template:
+    src: timesyncd.conf.j2
+    dest: /etc/systemd/timesyncd.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart timesyncd
+
+- name: Harden SSH — disable password auth
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+  loop:
+    - { regexp: '^PasswordAuthentication', line: 'PasswordAuthentication no' }
+    - { regexp: '^PermitRootLogin',        line: 'PermitRootLogin no' }
+    - { regexp: '^X11Forwarding',          line: 'X11Forwarding no' }
+    - { regexp: '^MaxAuthTries',           line: 'MaxAuthTries 3' }
+    - { regexp: '^ClientAliveInterval',    line: 'ClientAliveInterval 300' }
+    - { regexp: '^ClientAliveCountMax',    line: 'ClientAliveCountMax 2' }
+  notify: Restart sshd
+
+- name: Configure sysctl — kernel hardening
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: true
+  loop:
+    - { key: "net.ipv4.tcp_syncookies",          value: "1" }
+    - { key: "net.ipv4.conf.all.accept_redirects", value: "0" }
+    - { key: "net.ipv4.conf.all.send_redirects",   value: "0" }
+    - { key: "net.ipv4.ip_forward",               value: "1" }   # cần cho k8s
+    - { key: "net.bridge.bridge-nf-call-iptables", value: "1" }  # cần cho k8s
+    - { key: "vm.swappiness",                     value: "10" }
+    - { key: "fs.inotify.max_user_watches",       value: "524288" }
+
+- name: Load kernel modules for k8s
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Persist kernel modules
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/k8s.conf
+    content: |
+      overlay
+      br_netfilter
+    mode: "0644"
+
+- name: Disable swap
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+
+- name: Remove swap from fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'
+
+- name: Configure UFW — deny by default
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+
+- name: UFW — allow SSH
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+
+- name: Reboot if required
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+  when: ansible_reboot_pending | default(false)

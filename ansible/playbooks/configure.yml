@@ -1,0 +1,36 @@
+---
+# =============================================
+#  playbooks/configure.yml
+#  Cài app-level software theo nhóm VM
+# =============================================
+
+# ---------- Kubernetes cluster ----------
+- name: Setup Kubernetes (k3s)
+  hosts: k8s_all
+  gather_facts: true
+  serial: 1     # k8s phải tuần tự: master trước, workers sau
+
+  roles:
+    - role: kubernetes
+      tags: [k8s, kubernetes]
+
+# ---------- Monitoring stack ----------
+- name: Setup monitoring
+  hosts: monitoring
+  gather_facts: true
+
+  roles:
+    - role: monitoring
+      tags: [monitoring, prometheus, grafana]
+
+# ---------- Install node_exporter on ALL ----------
+- name: Install node_exporter everywhere
+  hosts: all
+  gather_facts: true
+
+  tasks:
+    - name: Include node_exporter install from monitoring role
+      ansible.builtin.include_role:
+        name: monitoring
+        tasks_from: node_exporter.yml
+      tags: [monitoring, node_exporter]

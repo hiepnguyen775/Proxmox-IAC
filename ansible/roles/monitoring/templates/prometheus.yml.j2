@@ -1,0 +1,30 @@
+# roles/monitoring/templates/prometheus.yml.j2
+# Managed by Ansible
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'proxmox-lab'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node'
+    static_configs:
+      - targets:
+{% for host in groups['all'] %}
+          - '{{ hostvars[host]["ansible_host"] }}:9100'
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  - job_name: 'k8s-nodes'
+    static_configs:
+      - targets:
+{% for host in groups.get('k8s_all', []) %}
+          - '{{ hostvars[host]["ansible_host"] }}:10250'
+{% endfor %}

@@ -1,0 +1,50 @@
+---
+# =============================================
+#  ansible/group_vars/all.yml
+# =============================================
+
+# SSH
+ansible_user: ubuntu
+ansible_ssh_private_key_file: "~/.ssh/id_ed25519"
+ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+ansible_python_interpreter: /usr/bin/python3
+
+# Sudo
+ansible_become: true
+ansible_become_method: sudo
+
+# --------- System ---------
+system_timezone: "Asia/Ho_Chi_Minh"
+system_locale: "en_US.UTF-8"
+
+system_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - iotop
+  - net-tools
+  - dnsutils
+  - jq
+  - unzip
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - qemu-guest-agent   # QUAN TRỌNG — Proxmox cần cái này
+
+# --------- NTP ---------
+ntp_servers:
+  - "0.pool.ntp.org"
+  - "1.pool.ntp.org"
+
+# --------- DNS ---------
+dns_servers:
+  - "1.1.1.1"
+  - "8.8.8.8"
+dns_search: "lab.local"
+
+# --------- Proxmox API (cho dynamic inventory) ---------
+proxmox_api_url: "https://192.168.1.10:8006"
+proxmox_api_user: "ansible@pve"
+# Secret lưu trong vault.yml

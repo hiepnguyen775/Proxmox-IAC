@@ -1,0 +1,29 @@
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/tfplan
+# SECRETS — không commit!
+terraform/terraform.tfvars
+**/.terraform/
+*.tfstate
+*.tfstate.*
+
+# Ansible
+# Encrypt trước khi commit
+ansible/group_vars/vault.yml
+*.retry
+# SECRETS
+kubeconfig.yaml
+
+# SSH
+*.pem
+id_rsa
+id_ed25519
+*.key
+
+# OS
+.DS_Store
+*.swp
+*~

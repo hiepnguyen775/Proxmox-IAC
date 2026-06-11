@@ -1,0 +1,45 @@
+---
+# =============================================
+#  ansible/inventory/proxmox.yml
+#  Dynamic inventory — pull VM list từ Proxmox API
+# =============================================
+
+plugin: community.general.proxmox
+
+# Proxmox API endpoint
+url: "https://192.168.1.10:8006"   # Đổi thành IP cluster của bạn
+
+# Auth — dùng token (không dùng password)
+user: "ansible@pve"
+token_id: "ansible-token"
+token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
+
+# TLS
+validate_certs: false   # Đổi thành true khi có cert hợp lệ
+
+# Lấy thông tin chi tiết (IP, tags, status)
+want_facts: true
+want_proxmox_nodes_ansible_host: true
+
+# Chỉ lấy VM đang chạy
+filters:
+  - status == 'running'
+
+# ---------- Auto-grouping theo tags ----------
+# Terraform đặt tags khi tạo VM → Ansible tự group
+groups:
+  k8s_masters:    "'k8s-master' in (proxmox_tags_parsed | default([]))"
+  k8s_workers:    "'k8s-worker' in (proxmox_tags_parsed | default([]))"
+  k8s_all:        "'k8s' in (proxmox_tags_parsed | default([]))"
+  monitoring:     "'monitoring' in (proxmox_tags_parsed | default([]))"
+  production:     "'prod' in (proxmox_tags_parsed | default([]))"
+  staging:        "'staging' in (proxmox_tags_parsed | default([]))"
+  proxy:          "'proxy' in (proxmox_tags_parsed | default([]))"
+
+# ---------- Variable per host ----------
+compose:
+  # Dùng IP từ cloud-init làm ansible_host
+  ansible_host: "proxmox_ipconfig0.ip | default(proxmox_net0.ip) | ansible.utils.ipaddr('address')"
+  ansible_user: "'ubuntu'"
+  # Map node name để biết VM đang chạy ở đâu
+  proxmox_node: "proxmox_node"

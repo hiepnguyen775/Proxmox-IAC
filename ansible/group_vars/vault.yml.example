@@ -1,0 +1,17 @@
+---
+# =============================================
+#  ansible/group_vars/vault.yml
+#  Encrypt file này với: ansible-vault encrypt vault.yml
+#  Edit sau: ansible-vault edit vault.yml
+# =============================================
+
+# Proxmox API token secret
+vault_proxmox_token_secret: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Passwords
+vault_admin_password: "ChangeMe123!"
+vault_grafana_admin_password: "GrafanaAdmin123!"
+
+# Telegram bot (cho alert)
+vault_telegram_bot_token: ""
+vault_telegram_chat_id: ""

@@ -1,0 +1,13 @@
+---
+# roles/monitoring/handlers/main.yml
+
+- name: Restart monitoring stack
+  ansible.builtin.command:
+    cmd: docker compose restart
+    chdir: /opt/monitoring
+  changed_when: false
+
+- name: Restart node_exporter
+  ansible.builtin.systemd:
+    name: node_exporter
+    state: restarted

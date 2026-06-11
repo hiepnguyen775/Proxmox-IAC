@@ -9,6 +9,29 @@
 
 ---
 
+## 🗺️ Bản đồ cấu hình — "muốn đổi gì thì sửa ở file nào"
+
+> Tra bảng này mỗi khi LAB bảo "sửa file ...". Mọi link đều mở được trên GitHub.
+
+| Muốn làm gì | Mở file | Sửa khối / chỗ nào |
+|---|---|---|
+| Khai báo 9 node, token, IP | [`terraform/terraform.tfvars`](terraform/terraform.tfvars.example) | `proxmox_nodes`, `proxmox_endpoint`, `proxmox_api_token` |
+| Thêm/bớt/đổi VM | [`terraform/terraform.tfvars`](terraform/terraform.tfvars.example) | `vm_definitions` (mỗi khối = 1 VM) |
+| Đổi storage VM (local-lvm → ceph-vm) | [`terraform/terraform.tfvars`](terraform/terraform.tfvars.example) | `storage_vm_pool` |
+| Hiểu/đổi biến + giá trị mặc định | [`terraform/variables.tf`](terraform/variables.tf) | các block `variable "..."` |
+| Cách 1 VM được tạo (CPU/RAM/disk/cloud-init) | [`terraform/modules/vm/main.tf`](terraform/modules/vm/main.tf) | resource `proxmox_virtual_environment_vm` |
+| Root gọi module nào | [`terraform/main.tf`](terraform/main.tf) | block `module "vms"`, `module "lxc"` |
+| OS chung mọi VM (package, timezone, sysctl, hardening) | [`ansible/roles/base/tasks/main.yml`](ansible/roles/base/tasks/main.yml) | task tương ứng |
+| Firewall & dải mạng tin cậy | [`ansible/group_vars/all.yml`](ansible/group_vars/all.yml) | `enable_ufw`, `trusted_network` |
+| Cài k3s (master/worker) | [`ansible/roles/kubernetes/tasks/main.yml`](ansible/roles/kubernetes/tasks/main.yml) | |
+| Prometheus/Grafana | [`ansible/roles/monitoring/tasks/main.yml`](ansible/roles/monitoring/tasks/main.yml) + [templates](ansible/roles/monitoring/templates/) | |
+| Cách Ansible tìm VM (tag→group) | [`ansible/inventory/proxmox.yml`](ansible/inventory/proxmox.yml) | mục `groups:` |
+| Mật khẩu/secret | [`ansible/group_vars/vault.yml.example`](ansible/group_vars/vault.yml.example) | (copy thành `vault.yml` rồi encrypt) |
+| Dựng Ceph | [`scripts/bootstrap-ceph.sh`](scripts/bootstrap-ceph.sh) | phần CẤU HÌNH đầu file |
+| Pipeline CI/CD | [`.github/workflows/infra.yml`](.github/workflows/infra.yml) | |
+
+---
+
 ## Ngày 1 — Làm quen công cụ & repo
 
 **Mục tiêu:** cài terraform + ansible, tải repo, hiểu cấu trúc.
@@ -108,6 +131,7 @@ cp terraform.tfvars.example terraform.tfvars
 > **Vì sao:** `.example` là mẫu (commit lên git được); `terraform.tfvars` là giá trị thật (đã .gitignore). Tách ra để không lộ secret.
 
 Sửa `terraform.tfvars`: điền `proxmox_endpoint`, `proxmox_api_token`, `ssh_public_key`, `proxmox_nodes` (tên node lab), và **rút gọn `vm_definitions` còn 1 VM test**.
+> 📄 **Liên quan file nào:** các biến này được *khai báo* ở [`terraform/variables.tf`](terraform/variables.tf); mẫu giá trị ở [`terraform.tfvars.example`](terraform/terraform.tfvars.example); *cách 1 VM được tạo* (clone template, gắn cloud-init/disk/network) nằm ở [`terraform/modules/vm/main.tf`](terraform/modules/vm/main.tf); root nối mọi thứ ở [`terraform/main.tf`](terraform/main.tf).
 
 ```bash
 terraform plan
@@ -146,6 +170,7 @@ export PROXMOX_TOKEN_SECRET="<secret-token-ansible>"
 ansible-inventory -i inventory/proxmox.yml --graph
 ```
 > **Vì sao:** `export` đưa secret vào biến môi trường (không ghi vào file). `ansible-inventory --graph` cho thấy Ansible "nhìn thấy" VM nào, gom nhóm theo tag ra sao — kiểm tra trước khi chạy thật.
+> 📄 **File:** cách gom nhóm (tag→group) định nghĩa ở [`ansible/inventory/proxmox.yml`](ansible/inventory/proxmox.yml) mục `groups:`.
 
 ```bash
 ansible all -m ping
@@ -156,6 +181,7 @@ ansible all -m ping
 ansible-playbook playbooks/provision.yml
 ```
 > **Vì sao:** chạy role `base`: hostname, timezone, package, hardening, nạp module kernel cho k8s... Chạy lại nhiều lần cũng an toàn (idempotent).
+> 📄 **File:** từng bước nằm ở [`ansible/roles/base/tasks/main.yml`](ansible/roles/base/tasks/main.yml); biến package/timezone/firewall ở [`ansible/group_vars/all.yml`](ansible/group_vars/all.yml). Muốn thêm 1 gói? Sửa `system_packages` trong file all.yml đó.
 
 ```bash
 ansible-playbook playbooks/provision.yml --check --diff
@@ -176,6 +202,7 @@ ansible-playbook playbooks/provision.yml --check --diff
 ansible-playbook playbooks/configure.yml --tags k8s
 ```
 > **Vì sao:** `--tags k8s` chỉ chạy phần Kubernetes (bỏ qua monitoring) → nhanh, tập trung. Play master chạy trước, worker join sau.
+> 📄 **File:** logic cài k3s ở [`ansible/roles/kubernetes/tasks/main.yml`](ansible/roles/kubernetes/tasks/main.yml); thứ tự master→worker ở [`ansible/playbooks/configure.yml`](ansible/playbooks/configure.yml).
 
 ```bash
 export KUBECONFIG=$PWD/kubeconfig.yaml
@@ -195,6 +222,7 @@ kubectl get nodes
 ansible-playbook playbooks/configure.yml --tags monitoring --limit monitoring
 ```
 > **Vì sao:** `--limit monitoring` chỉ chạy trên VM nhóm monitoring → không đụng VM khác. Mở Grafana ở `http://<ip-monitoring>:3000`.
+> 📄 **File:** stack monitoring ở [`ansible/roles/monitoring/tasks/main.yml`](ansible/roles/monitoring/tasks/main.yml); cấu hình Prometheus/Grafana/compose ở [`ansible/roles/monitoring/templates/`](ansible/roles/monitoring/templates/). Mật khẩu Grafana lấy từ `vault_grafana_admin_password` trong [`vault.yml.example`](ansible/group_vars/vault.yml.example).
 
 ```bash
 git status

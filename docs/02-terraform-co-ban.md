@@ -56,9 +56,11 @@ ssh ubuntu@192.168.1.150    # thử vào VM
 
 ## 3. Hiểu chuyện gì vừa xảy ra
 
-1. Terraform đọc `vm_definitions` → với mỗi VM gọi **module `vm`** (`modules/vm/`).
-2. Module clone từ template 9000, set CPU/RAM/disk, gắn network, và **cloud-init** (IP tĩnh + SSH key + user).
+1. Terraform đọc `vm_definitions` (trong [`terraform.tfvars`](../terraform/terraform.tfvars.example)) → với mỗi VM gọi **module `vm`** ([`modules/vm/main.tf`](../terraform/modules/vm/main.tf)). Việc nối này nằm ở [`main.tf`](../terraform/main.tf).
+2. Module clone từ template 9000, set CPU/RAM/disk, gắn network, và **cloud-init** (IP tĩnh + SSH key + user) — xem trực tiếp trong [`modules/vm/main.tf`](../terraform/modules/vm/main.tf).
 3. Kết quả ghi vào **`terraform.tfstate`** — Terraform nhớ VM này tồn tại.
+
+> 🗺️ "Muốn đổi gì sửa file nào" → xem bảng **Bản đồ cấu hình** ở [`LAB.md`](../LAB.md).
 
 ## 4. Sửa & thêm VM
 

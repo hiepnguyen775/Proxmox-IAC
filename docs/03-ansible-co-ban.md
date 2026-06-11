@@ -28,7 +28,9 @@ Kết quả mong đợi (nhóm sinh ra từ tags):
   |  |--monitoring-01
 ```
 
-> Nhóm `k8s_masters`, `k8s_workers`, `monitoring`… đến từ phần `groups:` trong `inventory/proxmox.yml`, dựa trên tag bạn đặt ở Terraform. Đây là lý do **tag rất quan trọng**.
+> Nhóm `k8s_masters`, `k8s_workers`, `monitoring`… đến từ phần `groups:` trong [`inventory/proxmox.yml`](../ansible/inventory/proxmox.yml), dựa trên tag bạn đặt ở Terraform. Đây là lý do **tag rất quan trọng**.
+>
+> 📄 **File liên quan:** OS chung → [`roles/base/tasks/main.yml`](../ansible/roles/base/tasks/main.yml) · k3s → [`roles/kubernetes/tasks/main.yml`](../ansible/roles/kubernetes/tasks/main.yml) · monitoring → [`roles/monitoring/`](../ansible/roles/monitoring/) · biến chung → [`group_vars/all.yml`](../ansible/group_vars/all.yml). Bảng tra đầy đủ ở [`LAB.md`](../LAB.md).
 
 Nếu trả về rỗng → xem [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) mục 5.
 

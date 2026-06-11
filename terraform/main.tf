@@ -59,31 +59,22 @@ module "lxc" {
   storage_pool   = var.storage_vm_pool
 }
 
-# ---------- SDN Network ----------
+# ---------- SDN / VLAN Network (optional, nâng cao) ----------
 module "network" {
-  source  = "./modules/network"
-  count   = var.sdn_enabled ? 1 : 0
+  source = "./modules/network"
+  count  = var.sdn_enabled ? 1 : 0
 
-  nodes       = var.proxmox_nodes
-  sdn_zones   = var.sdn_zones
+  nodes     = var.proxmox_nodes
+  sdn_zones = var.sdn_zones
 }
 
-# ---------- Ceph ----------
-module "ceph" {
-  source  = "./modules/ceph"
-  count   = var.ceph_enabled ? 1 : 0
-
-  nodes               = var.proxmox_nodes
-  primary_node        = local.primary_node
-  ceph_network        = var.ceph_network
-  ceph_cluster_network = var.ceph_cluster_network
-}
-
-# ---------- Storage Pools ----------
-module "storage" {
-  source  = "./modules/storage"
-  count   = var.ceph_enabled ? 1 : 0
-
-  primary_node = local.primary_node
-  nodes        = var.proxmox_nodes
-}
+# ============================================================
+#  CEPH — KHÔNG dựng bằng Terraform!
+# ------------------------------------------------------------
+#  Provider bpg/proxmox không quản lý được Ceph cluster/mon/osd.
+#  Ceph được dựng bằng lệnh `pveceph` chạy trực tiếp trên node:
+#      scripts/bootstrap-ceph.sh
+#  Sau khi Ceph + storage "ceph-vm" sẵn sàng, chỉ cần đặt trong
+#  terraform.tfvars:   storage_vm_pool = "ceph-vm"
+#  Hướng dẫn chi tiết:  docs/04-ceph-pveceph.md
+# ============================================================

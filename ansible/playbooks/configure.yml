@@ -1,20 +1,31 @@
 ---
 # =============================================
 #  playbooks/configure.yml
-#  Cài app-level software theo nhóm VM
+#  Cài app-level software theo nhóm VM (chạy SAU provision.yml)
 # =============================================
 
-# ---------- Kubernetes cluster ----------
-- name: Setup Kubernetes (k3s)
-  hosts: k8s_all
+# ---------- Kubernetes: CONTROL-PLANE trước ----------
+# Master phải cài xong & sinh token TRƯỚC khi worker join.
+- name: Setup Kubernetes control-plane (masters)
+  hosts: k8s_masters
   gather_facts: true
-  serial: 1     # k8s phải tuần tự: master trước, workers sau
 
   roles:
     - role: kubernetes
-      tags: [k8s, kubernetes]
+      tags: [k8s, kubernetes, k8s-master]
 
-# ---------- Monitoring stack ----------
+# ---------- Kubernetes: WORKERS sau ----------
+# Worker đọc token/IP master qua hostvars (facts đã set ở play trên,
+# vẫn còn trong cùng lần chạy playbook).
+- name: Setup Kubernetes workers
+  hosts: k8s_workers
+  gather_facts: true
+
+  roles:
+    - role: kubernetes
+      tags: [k8s, kubernetes, k8s-worker]
+
+# ---------- Monitoring stack (Prometheus + Grafana) ----------
 - name: Setup monitoring
   hosts: monitoring
   gather_facts: true
@@ -23,13 +34,13 @@
     - role: monitoring
       tags: [monitoring, prometheus, grafana]
 
-# ---------- Install node_exporter on ALL ----------
+# ---------- node_exporter trên TẤT CẢ host ----------
 - name: Install node_exporter everywhere
   hosts: all
   gather_facts: true
 
   tasks:
-    - name: Include node_exporter install from monitoring role
+    - name: Install node_exporter (dùng lại task từ role monitoring)
       ansible.builtin.include_role:
         name: monitoring
         tasks_from: node_exporter.yml

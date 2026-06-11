@@ -1,5 +1,5 @@
 # roles/monitoring/templates/prometheus.yml.j2
-# Managed by Ansible
+# Managed by Ansible — do not edit manually
 
 global:
   scrape_interval: 15s
@@ -12,19 +12,18 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
+  # node_exporter trên TẤT CẢ VM (cổng 9100)
   - job_name: 'node'
     static_configs:
-      - targets:
 {% for host in groups['all'] %}
-          - '{{ hostvars[host]["ansible_host"] }}:9100'
+      - targets: ['{{ hostvars[host]["ansible_host"] }}:9100']
+        labels:
+          host: '{{ host }}'
 {% endfor %}
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
 
-  - job_name: 'k8s-nodes'
-    static_configs:
-      - targets:
-{% for host in groups.get('k8s_all', []) %}
-          - '{{ hostvars[host]["ansible_host"] }}:10250'
-{% endfor %}
+  # ----------------------------------------------------------------
+  # Scrape metrics CỦA Kubernetes (kubelet/apiserver) KHÔNG làm kiểu
+  # static được: cổng 10250 cần HTTPS + bearer token. Cách đúng là
+  # deploy kube-prometheus-stack BÊN TRONG cluster bằng Helm.
+  # Xem docs/05-nang-cao.md mục "Giám sát Kubernetes".
+  # ----------------------------------------------------------------

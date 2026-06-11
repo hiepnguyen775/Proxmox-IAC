@@ -44,7 +44,13 @@ dns_servers:
   - "8.8.8.8"
 dns_search: "lab.local"
 
+# --------- Firewall (UFW) ---------
+enable_ufw: true
+# Dải mạng nội bộ được tin cậy hoàn toàn (node-to-node, pod VXLAN của k3s...).
+# ĐỔI cho khớp subnet quản trị/VM của bạn. Để trống/xóa nếu không muốn mở subnet.
+trusted_network: "192.168.1.0/24"
+
 # --------- Proxmox API (cho dynamic inventory) ---------
-proxmox_api_url: "https://192.168.1.10:8006"
+proxmox_api_url: "https://192.168.1.11:8006"
 proxmox_api_user: "ansible@pve"
-# Secret lưu trong vault.yml
+# Secret lưu trong vault.yml (vault_proxmox_token_secret)

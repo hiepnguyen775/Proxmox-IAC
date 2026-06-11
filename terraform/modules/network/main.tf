@@ -1,48 +1,42 @@
 # =============================================
 #  modules/network/main.tf
-#  SDN Zones, VNets, Subnets
+#  Tạo VLAN interface trên node primary (optional)
+#  Chỉ chạy khi sdn_enabled = true
 # =============================================
 
-variable "nodes"      { type = map(string) }
-variable "sdn_zones"  { type = list(any); default = [] }
+variable "nodes" { type = map(string) }
+
+variable "sdn_zones" {
+  type = list(object({
+    zone_id = string
+    type    = string
+    bridge  = string
+    vlan_id = number
+  }))
+  default = []
+}
 
 locals {
   primary_node = keys(var.nodes)[0]
 
-  # Chỉ lấy VLAN zones
-  vlan_zones = [for z in var.sdn_zones : z if z.type == "vlan"]
+  # Chỉ lấy các zone kiểu "vlan"
+  vlan_zones = {
+    for z in var.sdn_zones : z.zone_id => z if z.type == "vlan"
+  }
 }
 
-# ---------- VLAN Zone ----------
+# ---------- VLAN interface trên bridge cha ----------
 resource "proxmox_virtual_environment_network_linux_vlan" "vlans" {
-  for_each = {
-    for z in local.vlan_zones : z.zone_id => z
-  }
+  for_each = local.vlan_zones
 
   node_name = local.primary_node
-  name      = "vmbr0.${each.value.vlan_id}"
+  name      = "${each.value.bridge}.${each.value.vlan_id}"
   interface = each.value.bridge
   vlan      = each.value.vlan_id
-  comment   = "VLAN ${each.value.vlan_id} — ${each.value.zone_id}"
+  comment   = "VLAN ${each.value.vlan_id} — ${each.value.zone_id} (managed by Terraform)"
 }
 
-# ---------- SDN Simple Zone (VXLAN overlay) ----------
-# Uncomment khi cần VXLAN giữa các nodes
-# resource "proxmox_virtual_environment_sdn_zone" "vxlan" {
-#   zone    = "vxlan-zone"
-#   type    = "vxlan"
-#   peers   = values(var.nodes)
-# }
-
-# ---------- Linux Bridge cho internal traffic ----------
-resource "proxmox_virtual_environment_network_linux_bridge" "internal" {
-  for_each  = var.nodes
-  node_name = each.key
-
-  name    = "vmbr1"
-  comment = "Internal VM-to-VM network"
-  ports   = []
-
-  # Tắt STP để không gây loop trong lab
-  vlan_aware = true
+output "vlan_interfaces" {
+  description = "Các VLAN interface đã tạo"
+  value       = [for v in proxmox_virtual_environment_network_linux_vlan.vlans : v.name]
 }

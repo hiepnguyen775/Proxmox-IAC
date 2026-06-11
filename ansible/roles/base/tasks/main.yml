@@ -83,21 +83,8 @@
     - { regexp: '^ClientAliveCountMax',    line: 'ClientAliveCountMax 2' }
   notify: Restart sshd
 
-- name: Configure sysctl — kernel hardening
-  ansible.posix.sysctl:
-    name: "{{ item.key }}"
-    value: "{{ item.value }}"
-    state: present
-    reload: true
-  loop:
-    - { key: "net.ipv4.tcp_syncookies",          value: "1" }
-    - { key: "net.ipv4.conf.all.accept_redirects", value: "0" }
-    - { key: "net.ipv4.conf.all.send_redirects",   value: "0" }
-    - { key: "net.ipv4.ip_forward",               value: "1" }   # cần cho k8s
-    - { key: "net.bridge.bridge-nf-call-iptables", value: "1" }  # cần cho k8s
-    - { key: "vm.swappiness",                     value: "10" }
-    - { key: "fs.inotify.max_user_watches",       value: "524288" }
-
+# QUAN TRỌNG: phải load br_netfilter TRƯỚC khi set sysctl net.bridge.*
+# Nếu không, file /proc/sys/net/bridge/... chưa tồn tại -> task sysctl FAIL.
 - name: Load kernel modules for k8s
   community.general.modprobe:
     name: "{{ item }}"
@@ -106,13 +93,29 @@
     - overlay
     - br_netfilter
 
-- name: Persist kernel modules
+- name: Persist kernel modules (tự load lại sau reboot)
   ansible.builtin.copy:
     dest: /etc/modules-load.d/k8s.conf
     content: |
       overlay
       br_netfilter
     mode: "0644"
+
+- name: Configure sysctl — kernel hardening + k8s
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: true
+  loop:
+    - { key: "net.ipv4.tcp_syncookies",             value: "1" }
+    - { key: "net.ipv4.conf.all.accept_redirects",  value: "0" }
+    - { key: "net.ipv4.conf.all.send_redirects",    value: "0" }
+    - { key: "net.ipv4.ip_forward",                 value: "1" }   # cần cho k8s
+    - { key: "net.bridge.bridge-nf-call-iptables",  value: "1" }   # cần cho k8s
+    - { key: "net.bridge.bridge-nf-call-ip6tables", value: "1" }   # cần cho k8s
+    - { key: "vm.swappiness",                       value: "10" }
+    - { key: "fs.inotify.max_user_watches",         value: "524288" }
 
 - name: Disable swap
   ansible.builtin.command: swapoff -a
@@ -124,17 +127,32 @@
     regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
     replace: '# \1'
 
-- name: Configure UFW — deny by default
+# ---- Firewall (UFW) ----
+# Tắt toàn bộ firewall bằng cách đặt enable_ufw: false trong group_vars/all.yml
+- name: Configure UFW — deny incoming mặc định
   community.general.ufw:
     state: enabled
     policy: deny
     direction: incoming
+  when: enable_ufw | default(true)
 
 - name: UFW — allow SSH
   community.general.ufw:
     rule: allow
     port: "22"
     proto: tcp
+  when: enable_ufw | default(true)
+
+# Cho phép TOÀN BỘ traffic nội bộ giữa các node/VM trong dải tin cậy.
+# Bắt buộc cho k3s: API 6443, kubelet 10250, flannel VXLAN (UDP 8472),
+# pod-to-pod... -> mở theo subnet là cách đơn giản & an toàn nhất trong lab.
+- name: UFW — allow mọi traffic từ dải nội bộ tin cậy
+  community.general.ufw:
+    rule: allow
+    src: "{{ trusted_network }}"
+  when:
+    - enable_ufw | default(true)
+    - trusted_network is defined
 
 - name: Reboot if required
   ansible.builtin.reboot:

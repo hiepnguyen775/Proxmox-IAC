@@ -1,35 +1,67 @@
-# =============================================
+# ==========================================================
 #  terraform.tfvars.example
-#  Copy thành terraform.tfvars và điền thực
-#  KHÔNG commit file này lên git!
-# =============================================
+#  -> Copy thành terraform.tfvars rồi điền giá trị THẬT.
+#  -> KHÔNG commit terraform.tfvars (đã nằm trong .gitignore)!
+#
+#  Mọi dòng có chữ "ĐỔI:" là chỗ bạn cần sửa cho khớp hạ tầng.
+# ==========================================================
 
-proxmox_endpoint  = "https://192.168.1.10:8006"
+# ---------- Kết nối Proxmox ----------
+# ĐỔI: IP/hostname của 1 node bất kỳ trong cluster
+proxmox_endpoint = "https://192.168.1.11:8006"
+
+# ĐỔI: tạo token trong PVE UI: Datacenter > Permissions > API Tokens
+#      format bắt buộc: user@realm!token-id=secret
 proxmox_api_token = "terraform@pve!tf-token=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-proxmox_insecure  = true
-proxmox_ssh_user  = "root"
 
+proxmox_insecure = true   # lab self-signed cert; production để false
+proxmox_ssh_user = "root"
+
+# ---------- 9 node của cluster ----------
+# ĐỔI: tên node phải GIỐNG HỆT tên trong PVE UI; IP là IP quản trị.
 proxmox_nodes = {
-  "pve-node-01" = "192.168.1.10"
-  "pve-node-02" = "192.168.1.11"
-  "pve-node-03" = "192.168.1.12"
+  "pve-node-01" = "192.168.1.11"
+  "pve-node-02" = "192.168.1.12"
+  "pve-node-03" = "192.168.1.13"
+  "pve-node-04" = "192.168.1.14"
+  "pve-node-05" = "192.168.1.15"
+  "pve-node-06" = "192.168.1.16"
+  "pve-node-07" = "192.168.1.17"
+  "pve-node-08" = "192.168.1.18"
+  "pve-node-09" = "192.168.1.19"
 }
 
-vm_template_id    = 9000
-vm_ssh_public_key = "ssh-ed25519 AAAA... your-key-here" # nội dung ~/.ssh/id_ed25519.pub
-vm_default_user   = "ubuntu"
-vm_dns_server     = "1.1.1.1"
-vm_dns_domain     = "lab.local"
+# ---------- Mặc định cho VM ----------
+vm_template_id = 9000   # ID template tạo bởi scripts/create-template.sh
 
-storage_vm_pool  = "local-lvm"   # hoặc "ceph-vm" sau khi Ceph setup
-storage_iso_pool = "local"
+# ĐỔI: dán nội dung file ~/.ssh/id_ed25519.pub của bạn vào đây
+vm_ssh_public_key = "ssh-ed25519 AAAA... your-key-here"
 
-vm_bridge         = "vmbr0"
-vm_gateway        = "192.168.1.1"
-vm_network_prefix = "24"
+vm_default_user = "ubuntu"
+vm_dns_server   = "1.1.1.1"
+vm_dns_domain   = "lab.local"
 
-# ---------- VM DEFINITIONS ----------
+# local-lvm = đĩa cục bộ từng node (đơn giản, chạy ngay).
+# Đổi thành "ceph-vm" SAU KHI đã dựng Ceph (xem docs/04-ceph-pveceph.md).
+storage_vm_pool = "local-lvm"
+
+# ---------- Mạng ----------
+vm_bridge  = "vmbr0"
+vm_gateway = "192.168.1.1"
+
+# ==========================================================
+#  VM DEFINITIONS — định nghĩa từng VM
+#  Mẫu dưới đây: cụm Kubernetes (1 control-plane + 3 worker)
+#  trải trên các node, + 1 VM monitoring.
+#  ĐỔI vm_id / node / ip_address cho khớp của bạn.
+#  Quy ước IP gợi ý: master 1xx, worker 1xx, hạ tầng 12x.
+#
+#  HA nhiều master (3 control-plane) là phần NÂNG CAO — k3s master
+#  phụ phải join chứ không tự init. Xem docs/05-nang-cao.md trước khi
+#  thêm master thứ 2,3. Người mới nên bắt đầu với 1 master.
+# ==========================================================
 vm_definitions = {
+  # ---- Kubernetes control-plane (bắt đầu với 1) ----
   "k8s-master-01" = {
     vm_id      = 101
     node       = "pve-node-01"
@@ -39,36 +71,40 @@ vm_definitions = {
     ip_address = "192.168.1.101/24"
     tags       = ["k8s", "k8s-master", "prod"]
   }
+
+  # ---- Kubernetes workers ----
   "k8s-worker-01" = {
     vm_id      = 111
-    node       = "pve-node-01"
-    cpu_cores  = 4
-    memory_mb  = 8192
-    disk_gb    = 80
+    node       = "pve-node-04"
+    cpu_cores  = 8
+    memory_mb  = 16384
+    disk_gb    = 100
     ip_address = "192.168.1.111/24"
     tags       = ["k8s", "k8s-worker", "prod"]
   }
   "k8s-worker-02" = {
     vm_id      = 112
-    node       = "pve-node-02"
-    cpu_cores  = 4
-    memory_mb  = 8192
-    disk_gb    = 80
+    node       = "pve-node-05"
+    cpu_cores  = 8
+    memory_mb  = 16384
+    disk_gb    = 100
     ip_address = "192.168.1.112/24"
     tags       = ["k8s", "k8s-worker", "prod"]
   }
   "k8s-worker-03" = {
     vm_id      = 113
-    node       = "pve-node-03"
-    cpu_cores  = 4
-    memory_mb  = 8192
-    disk_gb    = 80
+    node       = "pve-node-06"
+    cpu_cores  = 8
+    memory_mb  = 16384
+    disk_gb    = 100
     ip_address = "192.168.1.113/24"
     tags       = ["k8s", "k8s-worker", "prod"]
   }
+
+  # ---- Monitoring (Prometheus + Grafana) ----
   "monitoring-01" = {
     vm_id      = 120
-    node       = "pve-node-01"
+    node       = "pve-node-07"
     cpu_cores  = 2
     memory_mb  = 4096
     disk_gb    = 60
@@ -77,11 +113,13 @@ vm_definitions = {
   }
 }
 
-# ---------- LXC DEFINITIONS ----------
+# ==========================================================
+#  LXC DEFINITIONS — container nhẹ (vd: reverse proxy)
+# ==========================================================
 lxc_definitions = {
   "proxy-01" = {
     ct_id       = 200
-    node        = "pve-node-01"
+    node        = "pve-node-08"
     cpu_cores   = 1
     memory_mb   = 512
     disk_gb     = 8
@@ -91,11 +129,13 @@ lxc_definitions = {
   }
 }
 
-# ---------- CEPH ----------
-ceph_enabled         = false
-ceph_network         = "192.168.1.0/24"
-ceph_cluster_network = "10.10.10.0/24"
-
-# ---------- SDN ----------
+# ==========================================================
+#  SDN / VLAN (optional — để mặc định nếu chưa cần)
+# ==========================================================
 sdn_enabled = false
-sdn_zones = []
+sdn_zones   = []
+# Ví dụ khi bật:
+# sdn_enabled = true
+# sdn_zones = [
+#   { zone_id = "vlan-100", type = "vlan", bridge = "vmbr0", vlan_id = 100 },
+# ]

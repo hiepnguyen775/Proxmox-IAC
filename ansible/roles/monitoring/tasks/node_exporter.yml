@@ -1,0 +1,57 @@
+---
+# =============================================
+#  roles/monitoring/tasks/node_exporter.yml
+#  Cài node_exporter (chạy được trên MỌI host).
+#  Được gọi từ:
+#   - main.yml (host monitoring)
+#   - playbooks/configure.yml play "node_exporter everywhere"
+# =============================================
+
+- name: Download & install node_exporter binary
+  ansible.builtin.shell: |
+    set -euo pipefail
+    VERSION=1.8.1
+    cd /tmp
+    wget -q https://github.com/prometheus/node_exporter/releases/download/v${VERSION}/node_exporter-${VERSION}.linux-amd64.tar.gz
+    tar xzf node_exporter-${VERSION}.linux-amd64.tar.gz
+    mv node_exporter-${VERSION}.linux-amd64/node_exporter /usr/local/bin/
+    rm -rf /tmp/node_exporter-*
+  args:
+    executable: /bin/bash
+    creates: /usr/local/bin/node_exporter
+
+- name: Create node_exporter systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/node_exporter.service
+    content: |
+      [Unit]
+      Description=Node Exporter
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=nobody
+      ExecStart=/usr/local/bin/node_exporter
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  notify: Restart node_exporter
+
+- name: Enable & start node_exporter
+  ansible.builtin.systemd:
+    name: node_exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: UFW — allow node_exporter (9100) từ dải nội bộ
+  community.general.ufw:
+    rule: allow
+    port: "9100"
+    proto: tcp
+    src: "{{ trusted_network }}"
+  when:
+    - enable_ufw | default(true)
+    - trusted_network is defined

@@ -6,14 +6,23 @@
 
 - name: Install Docker
   block:
+    # Ubuntu 24.04 đã BỎ apt-key -> phải dùng keyring trong /etc/apt/keyrings
+    - name: Ensure apt keyrings dir
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
     - name: Add Docker GPG key
-      ansible.builtin.apt_key:
+      ansible.builtin.get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
 
     - name: Add Docker repo
       ansible.builtin.apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        repo: "deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        filename: docker
         state: present
 
     - name: Install Docker packages
@@ -82,38 +91,8 @@
     - "9090"   # Prometheus
     - "9100"   # Node exporter
 
-- name: Install node_exporter on ALL hosts (collect metrics)
-  ansible.builtin.shell: |
-    VERSION=1.8.1
-    wget -q https://github.com/prometheus/node_exporter/releases/download/v${VERSION}/node_exporter-${VERSION}.linux-amd64.tar.gz
-    tar xzf node_exporter-${VERSION}.linux-amd64.tar.gz
-    mv node_exporter-${VERSION}.linux-amd64/node_exporter /usr/local/bin/
-    rm -rf node_exporter-*
-  args:
-    creates: /usr/local/bin/node_exporter
-
-- name: Create node_exporter systemd service
-  ansible.builtin.copy:
-    dest: /etc/systemd/system/node_exporter.service
-    content: |
-      [Unit]
-      Description=Node Exporter
-      After=network.target
-
-      [Service]
-      Type=simple
-      User=nobody
-      ExecStart=/usr/local/bin/node_exporter
-      Restart=on-failure
-
-      [Install]
-      WantedBy=multi-user.target
-    mode: "0644"
-  notify: Restart node_exporter
-
-- name: Enable node_exporter
-  ansible.builtin.systemd:
-    name: node_exporter
-    enabled: true
-    state: started
-    daemon_reload: true
+# Cài node_exporter ngay trên chính host monitoring.
+# (Các host khác được cài qua play "node_exporter everywhere" trong configure.yml,
+#  dùng chung file node_exporter.yml này.)
+- name: Install node_exporter on this host
+  ansible.builtin.include_tasks: node_exporter.yml

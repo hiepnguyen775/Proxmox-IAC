@@ -1,5 +1,7 @@
 # Troubleshooting — Lỗi hay gặp
 
+> Tài liệu hướng dẫn đầy đủ ở thư mục [`docs/`](docs/). File này chỉ gom lỗi hay gặp.
+
 ## 1. Terraform Init — provider download fail
 
 ```
@@ -164,4 +166,54 @@ ansible-inventory -i inventory/proxmox.yml --graph
 
 # Ping tất cả hosts
 ansible all -m ping
+```
+
+---
+
+## 10. Kubernetes — pod ở khác node không liên lạc được
+
+**Triệu chứng:** pod cùng node OK, nhưng gọi pod ở node khác bị timeout; CoreDNS lỗi.
+
+**Nguyên nhân hay gặp:** UFW chặn **flannel VXLAN (UDP 8472)**.
+
+**Fix:**
+```bash
+# Trên VM k8s, kiểm tra rule:
+sudo ufw status | grep 8472
+# Đảm bảo group_vars/all.yml có trusted_network đúng subnet, rồi chạy lại:
+ansible-playbook playbooks/provision.yml --limit <node>
+ansible-playbook playbooks/configure.yml --tags k8s
+# Hoặc tạm thời tắt firewall để xác nhận đúng nguyên nhân:
+#   enable_ufw: false  (trong all.yml) -> chạy lại provision
+```
+
+---
+
+## 11. Ansible base role — task sysctl `net.bridge.*` báo lỗi "No such file"
+
+**Nguyên nhân:** module `br_netfilter` chưa được load → `/proc/sys/net/bridge/...` chưa tồn tại.
+
+**Fix:** repo đã sắp xếp load module **trước** sysctl. Nếu vẫn lỗi, load tay rồi chạy lại:
+```bash
+sudo modprobe br_netfilter overlay
+```
+
+---
+
+## 12. Windows / WSL
+
+- Chạy **Ansible trong WSL** (Ubuntu), không chạy trực tiếp trên Windows.
+- Lỗi quyền key `~/.ssh/id_ed25519` (permissions too open): `chmod 600 ~/.ssh/id_ed25519`.
+- Dùng đường dẫn WSL (`/home/you/...`), tránh trộn đường dẫn `C:\...` khi chạy ansible.
+
+---
+
+## 13. Ceph
+
+Việc dựng Ceph xem [docs/04-ceph-pveceph.md](docs/04-ceph-pveceph.md). Lưu ý: **Terraform không dựng Ceph** — dùng `scripts/bootstrap-ceph.sh`.
+
+```bash
+ceph -s            # sức khỏe cluster
+ceph osd tree      # OSD trải đều các node chưa
+pvesm status       # storage 'ceph-vm' đã đăng ký chưa
 ```

@@ -39,7 +39,8 @@ resource "proxmox_virtual_environment_vm" "this" {
     ssd          = true
     discard      = "on"
     size         = var.disk_gb
-    file_format  = "raw"
+    # KHÔNG set file_format ở đây: local-lvm/ZFS/Ceph-RBD là block storage,
+    # provider sẽ tự dùng 'raw'. Chỉ set file_format khi dùng storage 'directory'.
   }
 
   # Network

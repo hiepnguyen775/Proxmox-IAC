@@ -1,0 +1,12 @@
+# Chuẩn hóa line-ending: luôn LF trong repo (tránh lỗi ^M / $'\r' trên Linux)
+* text=auto eol=lf
+
+# Shell script BẮT BUỘC LF, nếu không bash trên Ubuntu sẽ lỗi
+*.sh    text eol=lf
+*.bash  text eol=lf
+
+# File nhị phân — không đụng vào
+*.png   binary
+*.jpg   binary
+*.gz    binary
+*.zst   binary

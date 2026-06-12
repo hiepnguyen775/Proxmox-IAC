@@ -1,14 +1,17 @@
 # Terraform
 terraform/.terraform/
-terraform/.terraform.lock.hcl
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
 terraform/tfplan
 # SECRETS — không commit!
 terraform/terraform.tfvars
+# backend.hcl chứa endpoint/bucket thật -> không commit (giữ bản .example)
+**/backend.hcl
 **/.terraform/
 *.tfstate
 *.tfstate.*
+# LƯU Ý: .terraform.lock.hcl NÊN được commit để khóa hash provider (tái lập đúng version).
+# -> Cố ý KHÔNG ignore file này.
 
 # Ansible
 # Encrypt trước khi commit

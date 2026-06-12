@@ -7,18 +7,7 @@ terraform {
       version = "~> 0.66"
     }
   }
-
-  # ---------- Remote state (bật khi có S3/Minio) ----------
-  # backend "s3" {
-  #   bucket                      = "terraform-state"
-  #   key                         = "proxmox/prod/terraform.tfstate"
-  #   region                      = "ap-southeast-1"
-  #   endpoint                    = "https://minio.example.com"
-  #   skip_credentials_validation = true
-  #   skip_metadata_api_check     = true
-  #   skip_region_validation      = true
-  #   force_path_style            = true
-  # }
+  # Cấu hình remote state nằm ở backend.tf
 }
 
 provider "proxmox" {

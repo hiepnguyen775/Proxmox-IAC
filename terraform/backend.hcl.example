@@ -1,0 +1,11 @@
+# Copy thành backend.hcl rồi điền giá trị THẬT (file backend.hcl đã .gitignore).
+# Access key/secret của MinIO lấy qua env: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+# Dùng: terraform init -backend-config=backend.hcl -migrate-state
+bucket                      = "terraform-state"
+key                         = "proxmox/prod/terraform.tfstate"
+region                      = "ap-southeast-1"            # MinIO không quan tâm, đặt bất kỳ
+endpoint                    = "https://minio.example.com" # đổi thành endpoint MinIO thật
+skip_credentials_validation = true
+skip_metadata_api_check     = true
+skip_region_validation      = true
+use_path_style              = true                        # MinIO cần path-style

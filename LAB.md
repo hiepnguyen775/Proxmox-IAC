@@ -226,6 +226,12 @@ ansible-playbook playbooks/configure.yml --tags monitoring --limit monitoring
 > 📄 **File:** stack monitoring ở [`ansible/roles/monitoring/tasks/main.yml`](ansible/roles/monitoring/tasks/main.yml); cấu hình Prometheus/Grafana/compose ở [`ansible/roles/monitoring/templates/`](ansible/roles/monitoring/templates/). Mật khẩu Grafana lấy từ `vault_grafana_admin_password` trong [`vault.yml.example`](ansible/group_vars/vault.yml.example).
 
 ```bash
+pip install pre-commit && pre-commit install    # gắn kiểm tra tự động (1 lần)
+pre-commit run --all-files                        # chạy thử fmt/validate/ansible-lint
+```
+> **Vì sao:** từ giờ mỗi `git commit` sẽ tự `terraform fmt`/`validate` + `ansible-lint` + chặn lỡ commit private key. Lỗi bắt tại máy, không chờ CI báo. Chi tiết: [docs/05](docs/05-nang-cao.md) mục 7.
+
+```bash
 git status
 git checkout -b my-lab-changes
 git add -A

@@ -103,4 +103,15 @@ Vì cần xử lý "node đầu init, các node sau join" theo đúng thứ tự
 - Tách mạng quản trị / VM / Ceph.
 - Bật HA + backup (Proxmox Backup Server).
 
+## 7. pre-commit — bắt lỗi ngay tại máy (trước khi push)
+
+Repo có `.pre-commit-config.yaml`: tự chạy `terraform fmt`, `terraform validate`, `ansible-lint`, và chặn lỡ commit private key... **trước mỗi `git commit`**. Bắt lỗi tại máy nhanh & rẻ hơn để CI báo đỏ.
+
+```bash
+pip install pre-commit        # cần Python
+pre-commit install            # gắn hook vào repo (làm 1 lần)
+pre-commit run --all-files    # chạy thử toàn bộ ngay
+```
+> **Vì sao:** từ giờ mỗi `git commit` sẽ tự kiểm. Nếu `fmt` sửa file, commit dừng lại để bạn `git add` rồi commit tiếp. Hook `terraform_*` cần đã cài `terraform`; `ansible-lint` chạy hơi chậm — muốn bỏ qua 1 lần: `SKIP=ansible-lint git commit ...`.
+
 ➡️ Vận hành hằng ngày: [06-van-hanh.md](06-van-hanh.md).

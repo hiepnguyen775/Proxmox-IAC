@@ -1,0 +1,43 @@
+# ============================================================
+#  pre-commit — chạy kiểm tra TỰ ĐỘNG trước mỗi `git commit`
+# ============================================================
+# Mục đích: bắt lỗi format / cú pháp / lỡ commit secret NGAY trên máy,
+# trước khi đẩy lên (rẻ & nhanh hơn để CI báo lỗi).
+#
+# Cài 1 lần:
+#   pip install pre-commit            # cần Python
+#   pre-commit install                # gắn hook vào git của repo này
+# Từ giờ mỗi `git commit` sẽ tự chạy. Muốn chạy tay toàn bộ file:
+#   pre-commit run --all-files
+#
+# Lưu ý: hook terraform_* cần đã cài `terraform` trên máy.
+
+repos:
+  # ---------- Kiểm tra chung (Python, không cần cài thêm) ----------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace      # xóa khoảng trắng thừa cuối dòng
+      - id: end-of-file-fixer        # đảm bảo file kết thúc bằng 1 dòng trống
+      - id: check-merge-conflict     # chặn commit còn dấu <<<< merge
+      - id: check-yaml               # kiểm cú pháp YAML (playbook, inventory...)
+        args: [--allow-multiple-documents]
+      - id: detect-private-key       # CHẶN lỡ commit SSH/TLS private key
+
+  # ---------- Terraform (cần đã cài `terraform`) ----------
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.96.1
+    hooks:
+      - id: terraform_fmt            # tự canh lề .tf cho chuẩn
+      - id: terraform_validate       # kiểm cú pháp + tham chiếu biến
+        args:
+          - --hook-config=--retry-once-with-cleanup=true
+      # (NÂNG CAO) Quét bảo mật hạ tầng — cần cài thêm `trivy`:
+      # - id: terraform_trivy
+
+  # ---------- Ansible ----------
+  - repo: https://github.com/ansible/ansible-lint
+    rev: v24.5.0
+    hooks:
+      - id: ansible-lint             # bắt lỗi/anti-pattern trong playbook & role
+        # Chạy chậm hơn; nếu muốn tạm bỏ qua: SKIP=ansible-lint git commit ...

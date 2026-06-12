@@ -29,6 +29,7 @@
 | Mật khẩu/secret | [`ansible/group_vars/vault.yml.example`](ansible/group_vars/vault.yml.example) | (copy thành `vault.yml` rồi encrypt) |
 | Dựng Ceph | [`scripts/bootstrap-ceph.sh`](scripts/bootstrap-ceph.sh) | phần CẤU HÌNH đầu file |
 | Pipeline CI/CD | [`.github/workflows/infra.yml`](.github/workflows/infra.yml) | |
+| Bật remote state (S3/MinIO) | [`terraform/backend.tf`](terraform/backend.tf) + `backend.hcl` | xem [docs/05](docs/05-nang-cao.md) mục 1 |
 
 ---
 

@@ -6,24 +6,32 @@
 
 Mặc định state nằm ở file `terraform.tfstate` trên máy bạn → người khác hoặc CI không thấy, dễ xung đột. Giải pháp: lưu state ở nơi chung (S3/MinIO) + **khóa** để tránh 2 người apply cùng lúc.
 
-Trong `terraform/providers.tf` đã có sẵn block `backend "s3"` (đang comment). Bật lên, trỏ vào MinIO của bạn:
+Cấu hình backend nằm ở file riêng `terraform/backend.tf`, dùng **"partial config"**: block `backend "s3" {}` để trống, còn giá trị thật (endpoint/bucket MinIO) để ở file `backend.hcl` **không commit**. Cách làm:
 
-```hcl
-backend "s3" {
-  bucket                      = "terraform-state"
-  key                         = "proxmox/prod/terraform.tfstate"
-  region                      = "ap-southeast-1"
-  endpoint                    = "https://minio.example.com"
-  skip_credentials_validation = true
-  skip_metadata_api_check     = true
-  skip_region_validation      = true
-  force_path_style            = true
-}
+```bash
+cd terraform
+cp backend.hcl.example backend.hcl     # điền endpoint/bucket MinIO THẬT
+# mở backend.tf, bỏ comment block: terraform { backend "s3" {} }
+export AWS_ACCESS_KEY_ID=<minio-key>
+export AWS_SECRET_ACCESS_KEY=<minio-secret>
+terraform init -backend-config=backend.hcl -migrate-state
 ```
 
-Rồi `terraform init -migrate-state` để chuyển state hiện tại lên backend.
+Nội dung mẫu `backend.hcl.example` (lưu ý dùng `use_path_style`, tên mới thay cho `force_path_style` đã deprecated):
 
-> Credentials MinIO truyền qua biến môi trường `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
+```hcl
+bucket                      = "terraform-state"
+key                         = "proxmox/prod/terraform.tfstate"
+region                      = "ap-southeast-1"
+endpoint                    = "https://minio.example.com"
+skip_credentials_validation = true
+skip_metadata_api_check     = true
+skip_region_validation      = true
+use_path_style              = true
+```
+
+> Credentials MinIO truyền qua biến môi trường `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (không để trong `backend.hcl`).
+> 💡 Sau `init`, file `.terraform.lock.hcl` được sinh ra và **nên commit** (repo đã bỏ ignore nó) để khóa đúng hash provider.
 
 ## 2. CI/CD (`.github/workflows/infra.yml`)
 
